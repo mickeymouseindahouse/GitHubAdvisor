@@ -8,9 +8,9 @@ from langgraph.graph import Graph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
-from .github_api import GitHubAPI
-from .repository_analyzer import RepositoryAnalyzer
-from .class_diagram_generator import ClassDiagramGenerator
+from src.github_api import GitHubAPI
+from src.repository_analyzer import RepositoryAnalyzer
+from src.class_diagram_generator import ClassDiagramGenerator
 
 class GitHubRepositoryAgent:
     """Main agent that orchestrates the repository finding workflow using LangGraph."""

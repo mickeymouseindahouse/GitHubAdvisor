@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
-from .github_api import GitHubAPI
+from src.github_api import GitHubAPI
 
 class RepositoryAnalyzer:
     """Analyzes GitHub repositories for various metrics and insights."""
