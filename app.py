@@ -88,6 +88,14 @@ def main():
         3. **GitHub API search** finds relevant repositories
         4. **Smart ranking** based on stars, contributors, and activity
         5. **Detailed metrics** show PR merge times and other insights
+        6. **Class diagrams** generated on request using AI analysis
+        """)
+
+        st.header("💡 Example queries")
+        st.markdown("""
+        - "Find a Python web framework for REST APIs"
+        - "Show me a class diagram for a React state management library"
+        - "I need a machine learning framework with good documentation"
         """)
 
         st.header("🔑 Setup")

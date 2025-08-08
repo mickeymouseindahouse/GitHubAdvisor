@@ -6,6 +6,7 @@ An intelligent Streamlit chat application that helps users find the best GitHub 
 
 - 🤖 **AI-Powered Query Understanding**: Uses OpenAI's GPT to understand and parse user requirements
 - 🔍 **Intelligent Repository Search**: Searches GitHub with optimized queries based on user needs
+- 🏗️ **AI-Generated Class Diagrams**: Creates visual class diagrams for repositories using OpenAI and Graphviz
 - 📊 **Comprehensive Repository Analysis**: Analyzes multiple metrics including:
   - Stars and contributors
   - Pull request merge times
@@ -24,8 +25,9 @@ The application uses an **agentic LangGraph workflow** with the following compon
 1. **Query Parser**: Analyzes user input to extract search terms and requirements
 2. **Repository Searcher**: Uses GitHub API to find relevant repositories
 3. **Repository Analyzer**: Gathers detailed metrics for each repository
-4. **Ranking Engine**: Scores and ranks repositories based on multiple criteria
-5. **Response Generator**: Creates natural language explanations of recommendations
+4. **Class Diagram Generator**: Creates visual class diagrams using OpenAI and Graphviz
+5. **Ranking Engine**: Scores and ranks repositories based on multiple criteria
+6. **Response Generator**: Creates natural language explanations of recommendations
 
 ## Setup
 
@@ -68,10 +70,13 @@ The application will be available at `http://localhost:8501`
    - Example: "I need a Python web framework for building REST APIs"
    - Example: "Find me a JavaScript library for data visualization"
    - Example: "I'm looking for a machine learning framework with good documentation"
+   - Example: "Show me a class diagram for a React state management library"
 
 2. **Review recommendations**: The AI will analyze your query and present the top repositories with detailed metrics
 
-3. **Explore metrics**: Each recommendation includes:
+3. **View class diagrams**: When requested, the system will generate visual class diagrams showing the architecture of the recommended repositories
+
+4. **Explore metrics**: Each recommendation includes:
    - Repository statistics (stars, contributors, language)
    - Activity metrics (last updated, commit frequency)
    - Pull request analytics (merge times, open PRs)
@@ -103,7 +108,8 @@ For heavy usage, it's recommended to provide a GitHub personal access token.
 │   ├── __init__.py
 │   ├── github_agent.py         # Main LangGraph agent
 │   ├── github_api.py           # GitHub API client
-│   └── repository_analyzer.py  # Repository analysis logic
+│   ├── repository_analyzer.py  # Repository analysis logic
+│   └── class_diagram_generator.py  # Class diagram generation using OpenAI + Graphviz
 ├── requirements.txt
 ├── .env.example
 └── README.md

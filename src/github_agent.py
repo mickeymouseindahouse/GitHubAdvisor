@@ -9,6 +9,7 @@ from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from src.github_api import GitHubAPI
 from src.repository_analyzer import RepositoryAnalyzer
+from src.class_diagram_generator import ClassDiagramGenerator
 
 class GitHubRepositoryAgent:
     """Main agent that orchestrates the repository finding workflow using LangGraph."""
@@ -21,6 +22,7 @@ class GitHubRepositoryAgent:
         )
         self.github_api = GitHubAPI()
         self.analyzer = RepositoryAnalyzer(self.github_api)
+        self.diagram_generator = ClassDiagramGenerator()
         self.workflow = self._build_workflow()
 
     def _build_workflow(self) -> Graph:
@@ -89,7 +91,6 @@ class GitHubRepositoryAgent:
         """)
 
         human_message = HumanMessage(content=f"User query: {state['user_query']}")
-
         response = await self.openai_client.ainvoke([system_message, human_message])
 
         try:
