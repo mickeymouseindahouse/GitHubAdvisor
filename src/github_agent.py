@@ -5,6 +5,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import httpx
 from langgraph.graph import Graph, END
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from src.github_api import GitHubAPI
@@ -23,6 +24,7 @@ class GitHubRepositoryAgent:
         self.github_api = GitHubAPI()
         self.analyzer = RepositoryAnalyzer(self.github_api)
         self.diagram_generator = ClassDiagramGenerator()
+        self.memory = MemorySaver()
         self.workflow = self._build_workflow()
 
     def _build_workflow(self) -> Graph:
@@ -34,35 +36,91 @@ class GitHubRepositoryAgent:
         workflow.add_node("search_repositories", self._search_repositories)
         workflow.add_node("analyze_repositories", self._analyze_repositories)
         workflow.add_node("rank_repositories", self._rank_repositories)
+        workflow.add_node("generate_diagram", self._generate_diagram)
         workflow.add_node("generate_response", self._generate_response)
 
-        # Add edges
-        workflow.add_edge("parse_query", "search_repositories")
+        # Add conditional routing from parse_query
+        workflow.add_conditional_edges(
+            "parse_query",
+            self._route_request,
+            {
+                "search": "search_repositories",
+                "diagram": "generate_diagram"
+            }
+        )
+
+        # Search flow
         workflow.add_edge("search_repositories", "analyze_repositories")
         workflow.add_edge("analyze_repositories", "rank_repositories")
         workflow.add_edge("rank_repositories", "generate_response")
+        
+        # Diagram flow
+        workflow.add_edge("generate_diagram", "generate_response")
         workflow.add_edge("generate_response", END)
 
         # Set entry point
         workflow.set_entry_point("parse_query")
 
-        return workflow.compile()
+        return workflow.compile(checkpointer=self.memory)
 
-    async def find_repositories(self, user_query: str) -> Dict[str, Any]:
+    def _route_request(self, state: Dict[str, Any]) -> str:
+        """Route request based on query type."""
+        query = state["user_query"].lower()
+        diagram_keywords = ["diagram", "draw", "show", "visualize"]
+        
+        if any(keyword in query for keyword in diagram_keywords):
+            return "diagram"
+        return "search"
+
+    async def _generate_diagram(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate class diagram for specified repository."""
+        # Parse repo index from query
+        query = state["user_query"].lower()
+        repo_index = 0  # default to first repo
+        
+        if "second" in query or "2nd" in query or "2" in query:
+            repo_index = 1
+        elif "third" in query or "3rd" in query or "3" in query:
+            repo_index = 2
+            
+        # Get repositories from state
+        repositories = state.get("ranked_repositories", [])
+        
+        if not repositories or repo_index >= len(repositories):
+            state["response"] = "No repositories available for diagram generation. Please search for repositories first."
+            return state
+            
+        # Generate diagram for selected repository
+        selected_repo = repositories[repo_index]
+        diagram_path = await self.diagram_generator.generate_diagram(selected_repo)
+        
+        if diagram_path:
+            state["diagram_path"] = diagram_path
+            state["response"] = f"Generated class diagram for {selected_repo['name']}"
+        else:
+            state["response"] = f"Failed to generate diagram for {selected_repo['name']}"
+            
+        return state
+
+    async def find_repositories(self, user_query: str, thread_id: str = "default", stored_repositories: List[Dict] = None) -> Dict[str, Any]:
         """Main entry point for finding repositories."""
         initial_state = {
             "user_query": user_query,
+            "thread_id": thread_id,
             "search_terms": [],
             "repositories": [],
             "analyzed_repositories": [],
-            "ranked_repositories": [],
+            "ranked_repositories": stored_repositories or [],
             "response": ""
         }
 
-        result = await self.workflow.ainvoke(initial_state)
+        config = {"configurable": {"thread_id": thread_id}}
+        result = await self.workflow.ainvoke(initial_state, config=config)
+        
         return {
             "message": result["response"],
-            "repositories": result["ranked_repositories"]
+            "repositories": result.get("ranked_repositories", []),
+            "diagram_path": result.get("diagram_path")
         }
 
     async def _parse_query(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -221,6 +279,20 @@ class GitHubRepositoryAgent:
 
     async def _generate_response(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Generate a natural language response about the found repositories."""
+        
+        # Check if this is a diagram request - provide minimal response
+        query = state["user_query"].lower()
+        diagram_keywords = ["diagram", "draw", "show", "visualize"]
+        
+        if any(keyword in query for keyword in diagram_keywords):
+            # Use the response already set by _generate_diagram
+            if "response" in state and state["response"]:
+                return state
+            else:
+                state["response"] = "Generated class diagram"
+                return state
+        
+        # Regular search response
         repositories = state["ranked_repositories"][:3]  # Top 3
 
         if not repositories:

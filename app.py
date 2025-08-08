@@ -19,6 +19,10 @@ def main():
     # Initialize session state
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "thread_id" not in st.session_state:
+        st.session_state.thread_id = "user_session"
+    if "stored_repositories" not in st.session_state:
+        st.session_state.stored_repositories = []
     if "agent" not in st.session_state:
         try:
             st.session_state.agent = GitHubRepositoryAgent()
@@ -31,6 +35,13 @@ def main():
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+            # Redisplay diagram if it exists in this message
+            if "diagram_path" in message and message["diagram_path"]:
+                st.subheader("🏗️ Class Diagram")
+                try:
+                    st.image(message["diagram_path"], caption="Generated Class Diagram", use_column_width=True)
+                except Exception as e:
+                    st.warning(f"Could not display diagram: {str(e)}")
 
     # Chat input
     if prompt := st.chat_input("What kind of repository are you looking for?"):
@@ -41,10 +52,26 @@ def main():
 
         # Generate assistant response
         with st.chat_message("assistant"):
-            with st.spinner("Searching for the best repositories..."):
+            with st.spinner("Processing your request..."):
                 try:
-                    response = asyncio.run(st.session_state.agent.find_repositories(prompt))
+                    response = asyncio.run(st.session_state.agent.find_repositories(
+                        prompt, 
+                        st.session_state.thread_id,
+                        st.session_state.stored_repositories
+                    ))
                     st.markdown(response["message"])
+
+                    # Store repositories in session state for diagram requests
+                    if "repositories" in response and response["repositories"]:
+                        st.session_state.stored_repositories = response["repositories"]
+
+                    # Display class diagram if generated
+                    if "diagram_path" in response and response["diagram_path"]:
+                        st.subheader("🏗️ Class Diagram")
+                        try:
+                            st.image(response["diagram_path"], caption="Generated Class Diagram", use_column_width=True)
+                        except Exception as e:
+                            st.warning(f"Could not display diagram: {str(e)}")
 
                     if "repositories" in response and response["repositories"]:
                         st.subheader("📊 Repository Analysis")
@@ -68,7 +95,8 @@ def main():
 
                     st.session_state.messages.append({
                         "role": "assistant", 
-                        "content": response["message"]
+                        "content": response["message"],
+                        "diagram_path": response.get("diagram_path")
                     })
 
                 except Exception as e:
@@ -76,7 +104,8 @@ def main():
                     st.error(error_msg)
                     st.session_state.messages.append({
                         "role": "assistant", 
-                        "content": error_msg
+                        "content": error_msg,
+                        "diagram_path": None
                     })
 
     # Sidebar with instructions
